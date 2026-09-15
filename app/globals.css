@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------------------
+   Base layer: things that should be true everywhere, so no component has to
+   remember them. Anything added here applies app-wide, so keep it small.
+   --------------------------------------------------------------------------- */
+@layer base {
+  html {
+    /* Anchor links and programmatic scrolling animate, unless the user has
+       asked their OS for reduced motion (handled below). */
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-paper text-ink antialiased;
+  }
+
+  /* Keyboard focus must always be visible. Browsers only show :focus-visible
+     for keyboard/AT users, so mouse users don't see a ring on click.
+     This is non-negotiable for us -- the whole app has to be keyboard-operable
+     because of the voice-first mode we build in Sprint 7. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-paper;
+  }
+
+  /* Respect the OS "reduce motion" setting. Users with vestibular disorders
+     turn this on; ignoring it can make an app physically unpleasant to use. */
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Visually hidden, but still read by screen readers. Used for the
+     "Skip to main content" link and for labels that are obvious visually
+     but meaningless to a screen reader without text. */
+  .sr-only-focusable {
+    @apply sr-only;
+  }
+  .sr-only-focusable:focus {
+    @apply not-sr-only fixed left-4 top-4 z-50 rounded-control bg-ink px-4 py-2 text-paper;
+  }
+}
