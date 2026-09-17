@@ -83,3 +83,7 @@ export default app;
  * Do not import those before the sprint that needs them -- each one pulls a
  * few hundred KB into the client bundle.
  */
+
+import { getFirestore } from "firebase/firestore";
+// ... after the existing `export const auth = getAuth(app);` line:
+export const db = getFirestore(app);
