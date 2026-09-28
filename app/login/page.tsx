@@ -29,6 +29,10 @@ function LoginPage() {
         <AuthForm mode="login" />
       </div>
 
+      <Link href="/reset-password" className="mt-2 text-sm text-accent underline underline-offset-2">
+        Forgot password?
+      </Link>
+
       <div className="my-6 flex items-center gap-3">
         <span className="h-px flex-1 bg-line" aria-hidden="true" />
         <span className="text-sm text-muted">or</span>
