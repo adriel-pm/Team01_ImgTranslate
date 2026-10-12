@@ -71,19 +71,10 @@ export const auth: Auth = getAuth(app);
 
 export default app;
 
-/*
- * Sprint 2 adds, in this file:
- *   import { getFirestore } from "firebase/firestore";
- *   export const db = getFirestore(app);
- *
- * Sprint 3 adds:
- *   import { getStorage } from "firebase/storage";
- *   export const storage = getStorage(app);
- *
- * Do not import those before the sprint that needs them -- each one pulls a
- * few hundred KB into the client bundle.
- */
-
 import { getFirestore } from "firebase/firestore";
 // ... after the existing `export const auth = getAuth(app);` line:
 export const db = getFirestore(app);
+
+import { getStorage } from "firebase/storage";
+// ... after the existing db export:
+export const storage = getStorage(app);
