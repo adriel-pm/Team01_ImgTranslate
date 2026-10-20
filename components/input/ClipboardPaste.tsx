@@ -8,6 +8,7 @@ interface ClipboardPasteProps {
 
 function ClipboardPaste({ onImageSelected }: ClipboardPasteProps) {
   const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   useEffect(() => {
     function handlePaste(event: ClipboardEvent) {
@@ -23,6 +24,7 @@ function ClipboardPaste({ onImageSelected }: ClipboardPasteProps) {
       const file = imageItem.getAsFile();
       if (file) {
         setError(null);
+        setStatusMessage("Image pasted from clipboard.");
         onImageSelected(file);
       }
     }
@@ -39,6 +41,12 @@ function ClipboardPaste({ onImageSelected }: ClipboardPasteProps) {
           {error}
         </p>
       )}
+      {/* Visually hidden -- announces success to screen reader users, who
+          wouldn't otherwise know the paste worked since nothing visible
+          changes on this tab once the image is handed off to the parent. */}
+      <p role="status" aria-live="polite" className="sr-only">
+        {statusMessage}
+      </p>
     </div>
   );
 }
