@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useEffect } from "react";
 
 interface CameraCaptureProps {
   onImageSelected: (file: File) => void;
@@ -12,6 +13,12 @@ function CameraCapture({ onImageSelected }: CameraCaptureProps) {
   const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError("Your browser doesn't support camera capture. Use the Upload tab instead.");
+    }
+  }, []);
+  
   async function startCamera() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
