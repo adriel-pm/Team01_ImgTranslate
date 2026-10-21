@@ -77,4 +77,3 @@ function FileUpload({ onImageSelected }: FileUploadProps) {
 }
 
 export default FileUpload;
-``
