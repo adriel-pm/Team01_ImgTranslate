@@ -17,7 +17,9 @@ function ClipboardPaste({ onImageSelected }: ClipboardPasteProps) {
 
       const imageItem = Array.from(items).find((item) => item.type.startsWith("image/"));
       if (!imageItem) {
-        setError("No image found on your clipboard. Copy an image, then press Ctrl+V (or Cmd+V) here.");
+        setError(
+          "No image found on your clipboard. Copy an image, then press Ctrl+V (or Cmd+V) here.",
+        );
         return;
       }
 

@@ -22,7 +22,11 @@ function AuthGuard({ children, redirectTo = "/login" }: AuthGuardProps) {
 
   if (loading) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center" role="status" aria-live="polite">
+      <div
+        className="flex min-h-[50vh] items-center justify-center"
+        role="status"
+        aria-live="polite"
+      >
         <p className="text-sm text-muted">Checking your session…</p>
       </div>
     );

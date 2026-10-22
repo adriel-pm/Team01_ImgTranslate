@@ -21,7 +21,10 @@ function SignupPage() {
   }, [loading, user, router]);
 
   return (
-    <main id="main" className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-16">
+    <main
+      id="main"
+      className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-16"
+    >
       <h1 className="text-2xl font-semibold tracking-tight text-ink">Create your account</h1>
       <p className="mt-2 text-[15px] text-muted">
         An account keeps your translation history and your language settings.
