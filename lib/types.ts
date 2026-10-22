@@ -62,6 +62,33 @@ export interface UserPreferences {
   voiceFirstEnabled: boolean;
 }
 
+
+
+
+export interface BoundingBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface TextBlock {
+  text: string;
+  confidence: number;
+  blockIndex: number;
+  position: BoundingBox;
+}
+
+export interface OCRResult {
+  rawText: string;
+  blocks: TextBlock[];
+  detectedLanguage: string | null;
+  overallConfidence: number;
+}
+
+
+
+
 /** Defaults applied to a brand-new profile. Used from Sprint 2 onward. */
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   defaultTargetLang: "en",
