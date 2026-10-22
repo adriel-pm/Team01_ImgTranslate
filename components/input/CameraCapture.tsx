@@ -1,7 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface CameraCaptureProps {
   onImageSelected: (file: File) => void;
@@ -18,12 +17,28 @@ function CameraCapture({ onImageSelected }: CameraCaptureProps) {
       setError("Your browser doesn't support camera capture. Use the Upload tab instead.");
     }
   }, []);
-  
+
+  // WHY: the <video> element only exists after isActive flips to true, so
+  // startCamera() can't attach the stream itself: videoRef.current is still
+  // null at that moment. Attach it here, after React has rendered the element.
+  useEffect(() => {
+    if (isActive && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [isActive]);
+
+  // WHY: switching tabs unmounts this component without calling stopCamera(),
+  // which would leave the camera (and its green light) running.
+  useEffect(() => {
+    return () => streamRef.current?.getTracks().forEach((track) => track.stop());
+  }, []);
+
   async function startCamera() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
       streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
       setIsActive(true);
       setError(null);
     } catch {
@@ -39,7 +54,8 @@ function CameraCapture({ onImageSelected }: CameraCaptureProps) {
 
   function capture() {
     const video = videoRef.current;
-    if (!video) return;
+    // videoWidth is 0 until the first frame arrives; capturing then would produce a blank image.
+    if (!video || video.videoWidth === 0) return;
 
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
@@ -66,12 +82,23 @@ function CameraCapture({ onImageSelected }: CameraCaptureProps) {
       )}
       {isActive && (
         <div>
-          <video ref={videoRef} autoPlay playsInline className="w-full rounded-control border border-line" />
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            className="w-full rounded-control border border-line"
+          />
           <div className="mt-3 flex gap-2">
-            <button onClick={capture} className="min-h-touch rounded-control bg-accent px-4 py-2 text-sm font-medium text-paper">
+            <button
+              onClick={capture}
+              className="min-h-touch rounded-control bg-accent px-4 py-2 text-sm font-medium text-paper"
+            >
               Capture
             </button>
-            <button onClick={stopCamera} className="min-h-touch rounded-control border border-line px-4 py-2 text-sm text-ink">
+            <button
+              onClick={stopCamera}
+              className="min-h-touch rounded-control border border-line px-4 py-2 text-sm text-ink"
+            >
               Cancel
             </button>
           </div>
