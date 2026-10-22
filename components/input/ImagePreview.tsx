@@ -24,7 +24,11 @@ function ImagePreview({ file, onRemove }: ImagePreviewProps) {
 
   return (
     <div className="mt-6">
-      <img src={url} alt="Selected" className="max-h-80 w-full rounded-control border border-line object-contain" />
+      <img
+        src={url}
+        alt="Selected"
+        className="max-h-80 w-full rounded-control border border-line object-contain"
+      />
       <button onClick={onRemove} className="mt-2 text-sm text-muted underline underline-offset-2">
         Remove image
       </button>

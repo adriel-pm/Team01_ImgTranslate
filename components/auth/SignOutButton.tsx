@@ -39,7 +39,12 @@ function SignOutButton({ redirectTo = "/" }: SignOutButtonProps) {
 
   return (
     <div className="flex flex-col items-start gap-2">
-      <Button variant={isConfirming ? "primary" : "secondary"} onClick={handleClick} isLoading={isSigningOut} loadingLabel="Signing you out">
+      <Button
+        variant={isConfirming ? "primary" : "secondary"}
+        onClick={handleClick}
+        isLoading={isSigningOut}
+        loadingLabel="Signing you out"
+      >
         {isConfirming ? "Yes, end guest session" : "Sign out"}
       </Button>
       {isConfirming && (

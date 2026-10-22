@@ -12,8 +12,8 @@ function HistoryPage() {
 
       {user?.isGuest ? (
         <p className="mt-2 max-w-prose text-[15px] text-muted">
-          Guest sessions don&apos;t save history. Create an account to keep your translations
-          across visits.
+          Guest sessions don&apos;t save history. Create an account to keep your translations across
+          visits.
         </p>
       ) : (
         <p className="mt-2 max-w-prose text-[15px] text-muted">No translations yet.</p>

@@ -21,7 +21,10 @@ function LoginPage() {
   }, [loading, user, router]);
 
   return (
-    <main id="main" className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-16">
+    <main
+      id="main"
+      className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-16"
+    >
       <h1 className="text-2xl font-semibold tracking-tight text-ink">Log in</h1>
       <p className="mt-2 text-[15px] text-muted">Welcome back.</p>
 
@@ -29,7 +32,10 @@ function LoginPage() {
         <AuthForm mode="login" />
       </div>
 
-      <Link href="/reset-password" className="mt-2 text-sm text-accent underline underline-offset-2">
+      <Link
+        href="/reset-password"
+        className="mt-2 text-sm text-accent underline underline-offset-2"
+      >
         Forgot password?
       </Link>
 

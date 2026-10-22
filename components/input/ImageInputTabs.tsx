@@ -23,7 +23,11 @@ function ImageInputTabs({ onImageSelected }: ImageInputTabsProps) {
 
   return (
     <div>
-      <div role="tablist" aria-label="Choose how to add an image" className="flex gap-2 border-b border-line">
+      <div
+        role="tablist"
+        aria-label="Choose how to add an image"
+        className="flex gap-2 border-b border-line"
+      >
         {tabs.map((t) => (
           <button
             key={t.id}

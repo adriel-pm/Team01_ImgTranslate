@@ -29,5 +29,28 @@ export async function ensureUserProfile(uid: string): Promise<void> {
 export async function getUserProfile(uid: string): Promise<UserPreferences | null> {
   const ref = doc(db, "users", uid);
   const snapshot = await getDoc(ref);
-  return snapshot.exists() ? (snapshot.data() as UserPreferences) : null;
+  return snapshot.exists()
+    ? ({ ...DEFAULT_USER_PREFERENCES, ...snapshot.data() } as UserPreferences)
+    : null;
+}
+
+/**
+ * Whether this user's saved images should expire after 7 days. Missing or
+ * unreadable means true: if we can't tell what someone chose, deleting is
+ * the safer default for their privacy.
+ */
+export async function getAutoDeleteImages(uid: string): Promise<boolean> {
+  try {
+    const profile = await getUserProfile(uid);
+    return profile?.autoDeleteImages ?? true;
+  } catch (error) {
+    console.error("[firestore] could not read retention preference", error);
+    return true;
+  }
+}
+
+export async function setAutoDeleteImages(uid: string, value: boolean): Promise<void> {
+  // merge: true so this works even for an old profile that predates the field,
+  // and never overwrites the user's other preferences.
+  await setDoc(doc(db, "users", uid), { autoDeleteImages: value }, { merge: true });
 }

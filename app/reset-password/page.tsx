@@ -48,7 +48,12 @@ function ResetPasswordPage() {
               {error}
             </p>
           )}
-          <Button type="submit" fullWidth isLoading={isSubmitting} loadingLabel="Sending reset email">
+          <Button
+            type="submit"
+            fullWidth
+            isLoading={isSubmitting}
+            loadingLabel="Sending reset email"
+          >
             Send reset link
           </Button>
         </form>

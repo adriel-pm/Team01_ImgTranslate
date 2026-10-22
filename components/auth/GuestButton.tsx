@@ -32,10 +32,20 @@ function GuestButton({ redirectTo = "/home", onError }: GuestButtonProps) {
 
   return (
     <div className="flex flex-col gap-2">
-      <Button variant="ghost" fullWidth onClick={handleClick} isLoading={isSigningIn} loadingLabel="Starting guest session">
+      <Button
+        variant="ghost"
+        fullWidth
+        onClick={handleClick}
+        isLoading={isSigningIn}
+        loadingLabel="Starting guest session"
+      >
         Continue as guest
       </Button>
-      {localError && <p role="alert" className="text-sm text-danger">{localError}</p>}
+      {localError && (
+        <p role="alert" className="text-sm text-danger">
+          {localError}
+        </p>
+      )}
     </div>
   );
 }

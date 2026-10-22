@@ -36,7 +36,8 @@ function AuthForm({ mode, redirectTo = "/home" }: AuthFormProps) {
     if (!email.trim()) errors.email = "Enter your email address.";
     else if (!email.includes("@")) errors.email = "That email address isn't formatted correctly.";
     if (!password) errors.password = "Enter your password.";
-    else if (isSignup && password.length < 6) errors.password = "Passwords need at least 6 characters.";
+    else if (isSignup && password.length < 6)
+      errors.password = "Passwords need at least 6 characters.";
     return errors;
   }
 
@@ -97,12 +98,20 @@ function AuthForm({ mode, redirectTo = "/home" }: AuthFormProps) {
       />
 
       {formError && (
-        <p role="alert" className="rounded-control border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">
+        <p
+          role="alert"
+          className="rounded-control border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger"
+        >
           {formError}
         </p>
       )}
 
-      <Button type="submit" fullWidth isLoading={isSubmitting} loadingLabel={isSignup ? "Creating your account" : "Logging you in"}>
+      <Button
+        type="submit"
+        fullWidth
+        isLoading={isSubmitting}
+        loadingLabel={isSignup ? "Creating your account" : "Logging you in"}
+      >
         {isSignup ? "Create account" : "Log in"}
       </Button>
     </form>

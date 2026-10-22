@@ -30,7 +30,7 @@ function FileUpload({ onImageSelected }: FileUploadProps) {
     setError(null);
     onImageSelected(file); // Show the local preview immediately.
 
-    if (user) {
+    if (user && !user.isGuest) {
       setIsUploading(true);
       try {
         await uploadImage(file, user.uid);
