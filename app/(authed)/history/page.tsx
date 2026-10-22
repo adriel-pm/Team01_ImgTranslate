@@ -20,7 +20,7 @@ function HistoryPage() {
       )}
 
       <div className="mt-6 max-w-xs">
-        <LinkButton href="/home">Start translating</LinkButton>
+        <LinkButton href="/translate">Start translating</LinkButton>
       </div>
     </main>
   );
