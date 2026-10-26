@@ -1,7 +1,5 @@
-import type { OCRResult } from "@/lib/types";
-
 interface OCRResultDisplayProps {
-  result: OCRResult | null;
+  result: { rawText: string } | null;
 }
 
 export default function OCRResultDisplay({
