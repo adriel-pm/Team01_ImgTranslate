@@ -1,8 +1,24 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    match /users/{userId}/images/{allPaths=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Guests are anonymous accounts. They may only write to expiring/.
+    function isNotGuest() {
+      return request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    // Deleted automatically after 7 days by a bucket lifecycle rule.
+    match /expiring/{userId}/{allPaths=**} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Images a signed-in user chose to keep.
+    match /kept/{userId}/{allPaths=**} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId) && isNotGuest();
     }
   }
 }
