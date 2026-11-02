@@ -3,7 +3,7 @@
  * successful sign-in, so every account -- email, Google, or guest -- ends
  * up with a profile document.
  */
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
 
@@ -14,6 +14,16 @@ import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/lib/types";
  * Safe to call on every sign-in, not just signup -- an existing profile is
  * never overwritten.
  */
+
+
+// ...
+
+export async function updateUserMode(uid: string, mode: UserPreferences["mode"]): Promise<void> {
+  const ref = doc(db, "users", uid);
+  await updateDoc(ref, { mode });
+}
+
+
 export async function ensureUserProfile(uid: string): Promise<void> {
   const ref = doc(db, "users", uid);
   const existing = await getDoc(ref);

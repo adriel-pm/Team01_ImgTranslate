@@ -25,6 +25,13 @@
  * type at the edge means that if we ever swap auth providers, only lib/auth.ts
  * changes.
  */
+
+
+export interface SceneDescription {
+  description: string;
+}
+
+
 export interface AppUser {
   /** Firebase UID. This is the document key for users/{uid} in Firestore (Sprint 2). */
   uid: string;
