@@ -3,7 +3,7 @@
  * successful sign-in, so every account -- email, Google, or guest -- ends
  * up with a profile document.
  */
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
 
@@ -15,7 +15,6 @@ import { DEFAULT_USER_PREFERENCES, type UserPreferences } from "@/lib/types";
  * never overwritten.
  */
 
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 
 // ...
 
