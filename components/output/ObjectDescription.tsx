@@ -10,9 +10,8 @@ function ObjectDescription({ result }: ObjectDescriptionProps) {
 
   return (
     <div className="mt-6">
-      <h2 className="text-sm font-medium text-ink">
-        What's in this image
-      </h2>
+     
+      <h2 className="text-sm font-medium text-ink">What&apos;s in this image</h2>
       <p className="mt-2 rounded-control border border-line bg-wash px-4 py-3 text-[15px] text-ink">
         {result.description}
       </p>
