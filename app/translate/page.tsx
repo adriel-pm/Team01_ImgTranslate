@@ -1,36 +1,47 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import ImageInputTabs from "@/components/input/ImageInputTabs";
 import ImagePreview from "@/components/input/ImagePreview";
+import ModeToggle from "@/components/input/ModeToggle";
+import LanguagePicker from "@/components/input/LanguagePicker";
 import OCRResultDisplay from "@/components/output/OCRResult";
 import BoundingBoxOverlay from "@/components/output/BoundingBoxOverlay";
+import ObjectDescription from "@/components/output/ObjectDescription";
+import TranslationResultDisplay from "@/components/output/TranslationResult";
 import Button from "@/components/ui/Button";
-import useAuth from "@/hooks/useAuth";
 import { extractText } from "@/lib/ocr";
+import { identifyScene } from "@/lib/identify";
+import { translateOcrResult } from "@/lib/translate";
 import { uploadImage } from "@/lib/storage";
+import { getUserProfile } from "@/lib/firestore";
+import useAuth from "@/hooks/useAuth";
 
-import type { OCRResult } from "@/lib/types";
+import type { OCRResult, SceneDescription, TranslationResult, UserPreferences } from "@/lib/types";
 
 function TranslatePage() {
   const { user } = useAuth();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [isPreparing, setIsPreparing] = useState(false);
   const [imageDims, setImageDims] = useState({ width: 0, height: 0 });
+  const [mode, setMode] = useState<UserPreferences["mode"]>("auto");
+  const [targetLanguage, setTargetLanguage] = useState("en");
   const [ocrResult, setOcrResult] = useState<OCRResult | null>(null);
+  const [translationResult, setTranslationResult] = useState<TranslationResult | null>(null);
+  const [sceneResult, setSceneResult] = useState<SceneDescription | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // WHY a counter: saving and extracting are async, so a slow save for image A
-  // can finish after the user has already picked image B (or removed A). Every
-  // selection and removal bumps this id, and a result is only applied if its id
-  // is still the latest.
-  const selectionIdRef = useRef(0);
+  // Load the user's saved default target language once on mount, so the
+  // picker starts on their preference rather than always resetting to English.
+  useEffect(() => {
+    if (!user) return;
+    getUserProfile(user.uid).then((profile) => {
+      if (profile?.defaultTargetLang) setTargetLanguage(profile.defaultTargetLang);
+    });
+  }, [user]);
 
-  // Read the image's natural pixel size ourselves, rather than modifying
-  // ImagePreview -- keeps this story from touching a file someone else owns.
   useEffect(() => {
     if (!selectedFile) {
       setImageDims({ width: 0, height: 0 });
@@ -44,53 +55,80 @@ function TranslatePage() {
   }, [selectedFile]);
 
   async function handleImageSelected(file: File) {
-    const selectionId = ++selectionIdRef.current;
     setSelectedFile(file);
-    setImageUrl(null); // never let Extract run against the previous image
     setOcrResult(null);
+    setTranslationResult(null);
+    setSceneResult(null);
     setError(null);
 
-    if (!user) return;
-
-    setIsPreparing(true);
-    try {
-      // uploadImage chooses expiring/ or kept/ from the user's setting
-      // (guests are always expiring/).
-      const url = await uploadImage(file, user.uid);
-      if (selectionId === selectionIdRef.current) setImageUrl(url);
-    } catch (uploadError) {
-      console.error("[translate] could not save image", uploadError);
-      if (selectionId === selectionIdRef.current) {
-        setError("We couldn't prepare that image for text extraction. Remove it and try again.");
+    if (user) {
+      try {
+        const url = await uploadImage(file, user.uid);
+        setImageUrl(url);
+      } catch {
+        setError("The image was selected but couldn't be saved. Try again.");
       }
-    } finally {
-      if (selectionId === selectionIdRef.current) setIsPreparing(false);
     }
   }
 
   async function handleExtract() {
     if (!imageUrl) return;
-    const selectionId = selectionIdRef.current;
     setIsExtracting(true);
     setError(null);
-    try {
-      const result = await extractText(imageUrl);
-      if (selectionId === selectionIdRef.current) setOcrResult(result);
-    } catch (err) {
-      if (selectionId === selectionIdRef.current) {
-        setError(err instanceof Error ? err.message : "Couldn't extract text. Try again.");
-      }
-    } finally {
-      setIsExtracting(false);
+    setOcrResult(null);
+    setTranslationResult(null);
+    setSceneResult(null);
+
+    // OCR and scene description are independent, so they still run together.
+    const runOcr = mode !== "objects-only" ? extractText(imageUrl) : Promise.resolve(null);
+    const runScene = mode !== "text-only" ? identifyScene(imageUrl, targetLanguage) : Promise.resolve(null);
+
+    const [ocrOutcome, sceneOutcome] = await Promise.allSettled([runOcr, runScene]);
+
+    let ocr: OCRResult | null = null;
+    if (ocrOutcome.status === "fulfilled") {
+      ocr = ocrOutcome.value;
+      setOcrResult(ocr);
     }
+    if (sceneOutcome.status === "fulfilled") setSceneResult(sceneOutcome.value);
+
+    const ocrFailed = ocrOutcome.status === "rejected";
+    const sceneFailed = sceneOutcome.status === "rejected";
+
+    if ((mode === "auto" && ocrFailed && sceneFailed) || (mode === "text-only" && ocrFailed) || (mode === "objects-only" && sceneFailed)) {
+      setError("Couldn't process this image. Try again.");
+      setIsExtracting(false);
+      return;
+    }
+    if (mode === "auto" && (ocrFailed || sceneFailed)) {
+      setError(
+        ocrFailed
+          ? "Text extraction failed, but the scene description below still worked."
+          : "Scene description failed, but the extracted text below still worked.",
+      );
+    }
+
+    // Translation depends on OCR's output, so it deliberately runs AFTER
+    // the block above completes -- it cannot be part of the same
+    // Promise.allSettled, unlike OCR and scene description.
+    if (ocr && ocr.rawText.trim() && mode !== "objects-only") {
+      try {
+        const translation = await translateOcrResult(ocr, targetLanguage);
+        setTranslationResult(translation);
+      } catch (translateError) {
+        setError((prev) => prev ?? (translateError instanceof Error ? translateError.message : "Couldn't translate the extracted text."));
+      }
+    }
+
+    setIsExtracting(false);
   }
 
   function handleRemove() {
-    selectionIdRef.current++; // invalidates any save or extraction still in flight
     setSelectedFile(null);
     setImageUrl(null);
     setOcrResult(null);
-    setIsPreparing(false);
+    setTranslationResult(null);
+    setSceneResult(null);
     setError(null);
   }
 
@@ -101,36 +139,26 @@ function TranslatePage() {
         Upload a photo, take one with your camera, or paste one from your clipboard.
       </p>
 
+      <div className="mt-6 flex flex-wrap items-center gap-4">
+        <ModeToggle mode={mode} onChange={setMode} />
+        <LanguagePicker targetLanguage={targetLanguage} onChange={setTargetLanguage} />
+      </div>
+
       <div className="mt-8">
         <ImageInputTabs onImageSelected={handleImageSelected} />
-
         <div className="relative">
           <ImagePreview file={selectedFile} onRemove={handleRemove} />
-          {selectedFile && (
-            <BoundingBoxOverlay
-              blocks={ocrResult?.blocks ?? []}
-              imageWidth={imageDims.width}
-              imageHeight={imageDims.height}
-            />
+          {selectedFile && mode !== "objects-only" && (
+            <BoundingBoxOverlay blocks={ocrResult?.blocks ?? []} imageWidth={imageDims.width} imageHeight={imageDims.height} />
           )}
         </div>
       </div>
 
       {selectedFile && (
         <div className="mt-6 max-w-xs">
-          <Button
-            onClick={handleExtract}
-            disabled={!imageUrl}
-            isLoading={isPreparing || isExtracting}
-            loadingLabel={isPreparing ? "Preparing image" : "Extracting text"}
-          >
+          <Button onClick={handleExtract} disabled={!imageUrl || isExtracting} isLoading={isExtracting} loadingLabel="Processing">
             Extract Text
           </Button>
-          {isPreparing && (
-            <p role="status" className="mt-2 text-sm text-muted">
-              Preparing your image…
-            </p>
-          )}
         </div>
       )}
 
@@ -140,7 +168,13 @@ function TranslatePage() {
         </p>
       )}
 
-      <OCRResultDisplay result={ocrResult} />
+      {mode !== "objects-only" &&
+        (translationResult ? (
+          <TranslationResultDisplay result={translationResult} />
+        ) : (
+          <OCRResultDisplay result={ocrResult} />
+        ))}
+      {mode !== "text-only" && <ObjectDescription result={sceneResult} />}
     </main>
   );
 }
