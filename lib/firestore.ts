@@ -64,3 +64,8 @@ export async function setAutoDeleteImages(uid: string, value: boolean): Promise<
   // and never overwrites the user's other preferences.
   await setDoc(doc(db, "users", uid), { autoDeleteImages: value }, { merge: true });
 }
+
+export async function updateDefaultTargetLanguage(uid: string, language: string): Promise<void> {
+  const ref = doc(db, "users", uid);
+  await updateDoc(ref, { defaultTargetLang: language });
+}
