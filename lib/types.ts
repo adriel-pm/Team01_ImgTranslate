@@ -95,6 +95,22 @@ export interface OCRResult {
 
 
 
+export interface SegmentResult {
+  blockIndex: number;
+  originalText: string;
+  translatedText: string;
+}
+
+export interface TranslationResult {
+  originalText: string;
+  translatedText: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+  segments: SegmentResult[];
+}
+
+
+
 
 /** Defaults applied to a brand-new profile. Used from Sprint 2 onward. */
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
