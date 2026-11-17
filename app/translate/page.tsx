@@ -10,6 +10,7 @@ import OCRResultDisplay from "@/components/output/OCRResult";
 import BoundingBoxOverlay from "@/components/output/BoundingBoxOverlay";
 import ObjectDescription from "@/components/output/ObjectDescription";
 import TranslationResultDisplay from "@/components/output/TranslationResult";
+import LiveAnnouncer from "@/components/accessibility/LiveAnnouncer";
 import Button from "@/components/ui/Button";
 import { extractText } from "@/lib/ocr";
 import { identifyScene } from "@/lib/identify";
@@ -17,11 +18,13 @@ import { translateOcrResult } from "@/lib/translate";
 import { uploadImage } from "@/lib/storage";
 import { getUserProfile } from "@/lib/firestore";
 import useAuth from "@/hooks/useAuth";
+import useTTS from "@/hooks/useTTS";
 
 import type { OCRResult, SceneDescription, TranslationResult, UserPreferences } from "@/lib/types";
 
 function TranslatePage() {
   const { user } = useAuth();
+  const { speak, stop } = useTTS();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageDims, setImageDims] = useState({ width: 0, height: 0 });
@@ -32,9 +35,8 @@ function TranslatePage() {
   const [sceneResult, setSceneResult] = useState<SceneDescription | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [announcement, setAnnouncement] = useState<string | null>(null);
 
-  // Load the user's saved default target language once on mount, so the
-  // picker starts on their preference rather than always resetting to English.
   useEffect(() => {
     if (!user) return;
     getUserProfile(user.uid).then((profile) => {
@@ -78,8 +80,8 @@ function TranslatePage() {
     setOcrResult(null);
     setTranslationResult(null);
     setSceneResult(null);
+    setAnnouncement("Processing image");
 
-    // OCR and scene description are independent, so they still run together.
     const runOcr = mode !== "objects-only" ? extractText(imageUrl) : Promise.resolve(null);
     const runScene = mode !== "text-only" ? identifyScene(imageUrl, targetLanguage) : Promise.resolve(null);
 
@@ -97,6 +99,7 @@ function TranslatePage() {
 
     if ((mode === "auto" && ocrFailed && sceneFailed) || (mode === "text-only" && ocrFailed) || (mode === "objects-only" && sceneFailed)) {
       setError("Couldn't process this image. Try again.");
+      setAnnouncement("Processing failed");
       setIsExtracting(false);
       return;
     }
@@ -108,9 +111,6 @@ function TranslatePage() {
       );
     }
 
-    // Translation depends on OCR's output, so it deliberately runs AFTER
-    // the block above completes -- it cannot be part of the same
-    // Promise.allSettled, unlike OCR and scene description.
     if (ocr && ocr.rawText.trim() && mode !== "objects-only") {
       try {
         const translation = await translateOcrResult(ocr, targetLanguage);
@@ -120,6 +120,7 @@ function TranslatePage() {
       }
     }
 
+    setAnnouncement("Results ready");
     setIsExtracting(false);
   }
 
@@ -132,11 +133,37 @@ function TranslatePage() {
     setError(null);
   }
 
+  // Space = extract, Escape = stop any speech in progress, R = re-read the
+  // best available result. Skipped entirely while focus is in a form field,
+  // so typing a letter "r" in, say, a future notes field doesn't trigger it.
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement;
+      const isTyping = ["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName);
+      if (isTyping) return;
+
+      if (event.code === "Space" && selectedFile && imageUrl && !isExtracting) {
+        event.preventDefault();
+        handleExtract();
+      } else if (event.key === "Escape") {
+        stop();
+      } else if (event.key.toLowerCase() === "r") {
+        const lastText = translationResult?.translatedText ?? ocrResult?.rawText ?? sceneResult?.description;
+        if (lastText) speak(lastText, translationResult?.targetLanguage ?? "en-US");
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFile, imageUrl, isExtracting, translationResult, ocrResult, sceneResult]);
+
   return (
     <main id="main" className="mx-auto max-w-2xl px-6 py-16">
       <h1 className="text-2xl font-semibold tracking-tight text-ink">Translate</h1>
       <p className="mt-2 text-[15px] text-muted">
-        Upload a photo, take one with your camera, or paste one from your clipboard.
+        Upload a photo, take one with your camera, or paste one from your clipboard. Press Space to
+        extract, R to re-read the result, Escape to stop reading.
       </p>
 
       <div className="mt-6 flex flex-wrap items-center gap-4">
@@ -175,6 +202,8 @@ function TranslatePage() {
           <OCRResultDisplay result={ocrResult} />
         ))}
       {mode !== "text-only" && <ObjectDescription result={sceneResult} />}
+
+      <LiveAnnouncer message={announcement} />
     </main>
   );
 }
