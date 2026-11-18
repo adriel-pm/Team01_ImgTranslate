@@ -1,3 +1,5 @@
+import SpeakButton from "@/components/accessibility/SpeakButton";
+
 import type { TranslationResult } from "@/lib/types";
 
 interface TranslationResultProps {
@@ -11,7 +13,12 @@ function TranslationResultDisplay({ result }: TranslationResultProps) {
 
   return (
     <div className="mt-6">
-      <h2 className="text-sm font-medium text-ink">Translation</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-medium text-ink">Translation</h2>
+        {!isSameLanguage && (
+          <SpeakButton text={result.translatedText} lang={result.targetLanguage} label="Read translation aloud" />
+        )}
+      </div>
 
       {isSameLanguage ? (
         <p className="mt-2 text-sm text-muted">
