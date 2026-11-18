@@ -10,17 +10,21 @@ import OCRResultDisplay from "@/components/output/OCRResult";
 import BoundingBoxOverlay from "@/components/output/BoundingBoxOverlay";
 import ObjectDescription from "@/components/output/ObjectDescription";
 import TranslationResultDisplay from "@/components/output/TranslationResult";
+import TapToCorrect from "@/components/correction/TapToCorrect";
+import InlineEditor from "@/components/correction/InlineEditor";
+import UndoButton from "@/components/correction/UndoButton";
 import LiveAnnouncer from "@/components/accessibility/LiveAnnouncer";
 import Button from "@/components/ui/Button";
 import { extractText } from "@/lib/ocr";
 import { identifyScene } from "@/lib/identify";
 import { translateOcrResult } from "@/lib/translate";
+import { retranslateSegment } from "@/lib/correction";
 import { uploadImage } from "@/lib/storage";
 import { getUserProfile } from "@/lib/firestore";
 import useAuth from "@/hooks/useAuth";
 import useTTS from "@/hooks/useTTS";
 
-import type { OCRResult, SceneDescription, TranslationResult, UserPreferences } from "@/lib/types";
+import type { EditRecord, OCRResult, SceneDescription, TextBlock, TranslationResult, UserPreferences } from "@/lib/types";
 
 function TranslatePage() {
   const { user } = useAuth();
@@ -36,6 +40,12 @@ function TranslatePage() {
   const [isExtracting, setIsExtracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState<string | null>(null);
+
+  // Correction state
+  const [selectedBlock, setSelectedBlock] = useState<TextBlock | null>(null);
+  const [isRetranslating, setIsRetranslating] = useState(false);
+  const [editHistory, setEditHistory] = useState<EditRecord[]>([]);
+  const [staleWarning, setStaleWarning] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -62,6 +72,8 @@ function TranslatePage() {
     setTranslationResult(null);
     setSceneResult(null);
     setError(null);
+    setEditHistory([]);
+    setSelectedBlock(null);
 
     if (user) {
       try {
@@ -80,6 +92,7 @@ function TranslatePage() {
     setOcrResult(null);
     setTranslationResult(null);
     setSceneResult(null);
+    setEditHistory([]);
     setAnnouncement("Processing image");
 
     const runOcr = mode !== "objects-only" ? extractText(imageUrl) : Promise.resolve(null);
@@ -131,11 +144,65 @@ function TranslatePage() {
     setTranslationResult(null);
     setSceneResult(null);
     setError(null);
+    setEditHistory([]);
+    setSelectedBlock(null);
   }
 
-  // Space = extract, Escape = stop any speech in progress, R = re-read the
-  // best available result. Skipped entirely while focus is in a form field,
-  // so typing a letter "r" in, say, a future notes field doesn't trigger it.
+  async function handleSaveCorrection(blockIndex: number, newText: string) {
+    if (!translationResult) return;
+    const segment = translationResult.segments.find((s) => s.blockIndex === blockIndex);
+    if (!segment) return;
+
+    setIsRetranslating(true);
+    setStaleWarning(null);
+
+    try {
+      const updated = await retranslateSegment(translationResult, blockIndex, newText);
+      // Record what the segment used to say, so undo can put it back exactly.
+      setEditHistory((prev) => [
+        ...prev,
+        { blockIndex, previousOriginalText: segment.originalText, previousTranslatedText: segment.translatedText },
+      ]);
+      setTranslationResult(updated);
+      setSelectedBlock(null);
+      setAnnouncement("Correction saved");
+    } catch (err) {
+      // Deliberately keep the previous translation on screen rather than
+      // clearing it -- a failed correction shouldn't cost the user the
+      // result they already had.
+      setStaleWarning(err instanceof Error ? err.message : "Couldn't save that correction. Showing the previous translation.");
+    } finally {
+      setIsRetranslating(false);
+    }
+  }
+
+  function handleUndo() {
+    if (!translationResult || editHistory.length === 0) return;
+    const lastEdit = editHistory[editHistory.length - 1];
+
+    setTranslationResult((prev) => {
+      if (!prev) return prev;
+      const currentSegment = prev.segments.find((s) => s.blockIndex === lastEdit.blockIndex);
+      if (!currentSegment) return prev;
+
+      const revertedSegments = prev.segments.map((s) =>
+        s.blockIndex === lastEdit.blockIndex
+          ? { blockIndex: lastEdit.blockIndex, originalText: lastEdit.previousOriginalText, translatedText: lastEdit.previousTranslatedText }
+          : s,
+      );
+
+      return {
+        ...prev,
+        originalText: prev.originalText.replace(currentSegment.originalText, lastEdit.previousOriginalText),
+        translatedText: prev.translatedText.replace(currentSegment.translatedText, lastEdit.previousTranslatedText),
+        segments: revertedSegments,
+      };
+    });
+
+    setEditHistory((prev) => prev.slice(0, -1));
+    setAnnouncement("Correction undone");
+  }
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       const target = event.target as HTMLElement;
@@ -147,6 +214,7 @@ function TranslatePage() {
         handleExtract();
       } else if (event.key === "Escape") {
         stop();
+        setSelectedBlock(null);
       } else if (event.key.toLowerCase() === "r") {
         const lastText = translationResult?.translatedText ?? ocrResult?.rawText ?? sceneResult?.description;
         if (lastText) speak(lastText, translationResult?.targetLanguage ?? "en-US");
@@ -163,7 +231,7 @@ function TranslatePage() {
       <h1 className="text-2xl font-semibold tracking-tight text-ink">Translate</h1>
       <p className="mt-2 text-[15px] text-muted">
         Upload a photo, take one with your camera, or paste one from your clipboard. Press Space to
-        extract, R to re-read the result, Escape to stop reading.
+        extract, R to re-read the result, Escape to stop reading or close a correction.
       </p>
 
       <div className="mt-6 flex flex-wrap items-center gap-4">
@@ -176,10 +244,29 @@ function TranslatePage() {
         <div className="relative">
           <ImagePreview file={selectedFile} onRemove={handleRemove} />
           {selectedFile && mode !== "objects-only" && (
-            <BoundingBoxOverlay blocks={ocrResult?.blocks ?? []} imageWidth={imageDims.width} imageHeight={imageDims.height} />
+            <>
+              <BoundingBoxOverlay blocks={ocrResult?.blocks ?? []} imageWidth={imageDims.width} imageHeight={imageDims.height} />
+              {translationResult && (
+                <TapToCorrect
+                  blocks={ocrResult?.blocks ?? []}
+                  imageWidth={imageDims.width}
+                  imageHeight={imageDims.height}
+                  onSelectBlock={setSelectedBlock}
+                />
+              )}
+            </>
           )}
         </div>
       </div>
+
+      {selectedBlock && (
+        <InlineEditor
+          block={selectedBlock}
+          onSave={handleSaveCorrection}
+          onCancel={() => setSelectedBlock(null)}
+          isSaving={isRetranslating}
+        />
+      )}
 
       {selectedFile && (
         <div className="mt-6 max-w-xs">
@@ -195,9 +282,20 @@ function TranslatePage() {
         </p>
       )}
 
+      {staleWarning && (
+        <p role="alert" className="mt-3 text-sm text-danger">
+          {staleWarning}
+        </p>
+      )}
+
       {mode !== "objects-only" &&
         (translationResult ? (
-          <TranslationResultDisplay result={translationResult} />
+          <>
+            <TranslationResultDisplay result={translationResult} />
+            <div className="mt-2">
+              <UndoButton disabled={editHistory.length === 0} onUndo={handleUndo} />
+            </div>
+          </>
         ) : (
           <OCRResultDisplay result={ocrResult} />
         ))}

@@ -110,6 +110,13 @@ export interface TranslationResult {
 }
 
 
+export interface EditRecord {
+  blockIndex: number;
+  previousOriginalText: string;
+  previousTranslatedText: string;
+}
+
+
 
 
 /** Defaults applied to a brand-new profile. Used from Sprint 2 onward. */
