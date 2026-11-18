@@ -69,3 +69,8 @@ export async function updateDefaultTargetLanguage(uid: string, language: string)
   const ref = doc(db, "users", uid);
   await updateDoc(ref, { defaultTargetLang: language });
 }
+
+export async function updateVoiceFirstEnabled(uid: string, enabled: boolean): Promise<void> {
+  const ref = doc(db, "users", uid);
+  await updateDoc(ref, { voiceFirstEnabled: enabled });
+}
